@@ -42,45 +42,50 @@
 #   All the Maya libraries.
 #
 
+### Locating maya
+
 # Raise an error if Maya version if not specified
 if (NOT MAYA_VERSION)
-    set(MAYA_VERSION "VARIABLE_NOT_SET" CACHE STRING "" FORCE)
-endif()
+    SET(MAYA_VERSION "VARIABLE_NOT_SET" CACHE STRING "" FORCE)
+ENDIF()
 
 if(MAYA_VERSION STREQUAL "VARIABLE_NOT_SET")
-    message(FATAL_ERROR "MAYA_VERSION variable is not specified")
-endif()
+    MESSAGE(FATAL_ERROR "MAYA_VERSION variable is not specified")
+ENDIF()
 
 # OS Specific environment setup
-set(MAYA_COMPILE_DEFINITIONS "REQUIRE_IOSTREAM;_BOOL")
-set(MAYA_INSTALL_BASE_SUFFIX "")
-set(MAYA_TARGET_TYPE LIBRARY)
+SET(MAYA_COMPILE_DEFINITIONS "REQUIRE_IOSTREAM;_BOOL")
+SET(MAYA_INSTALL_BASE_SUFFIX "")
+SET(MAYA_TARGET_TYPE LIBRARY)
 if(WIN32)
     # Windows
-    set(MAYA_INSTALL_BASE_DEFAULT "C:/Program Files/Autodesk")
-    set(MAYA_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS};NT_PLUGIN")
-    set(MAYA_PLUGIN_EXTENSION ".mll")
-    set(MAYA_TARGET_TYPE RUNTIME)
+    SET(MAYA_INSTALL_BASE_DEFAULT "C:/Program Files/Autodesk")
+    SET(MAYA_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS};NT_PLUGIN")
+    SET(MAYA_PLUGIN_EXTENSION ".mll")
+    SET(MAYA_TARGET_TYPE RUNTIME)
 elseif(APPLE)
     # Apple
-    set(MAYA_INSTALL_BASE_DEFAULT /Applications/Autodesk)
-    set(MAYA_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS};OSMac_")
-    set(MAYA_PLUGIN_EXTENSION ".bundle")
+    SET(MAYA_INSTALL_BASE_DEFAULT /Applications/Autodesk)
+    SET(MAYA_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS};OSMac_")
+    SET(MAYA_PLUGIN_EXTENSION ".bundle")
 else()
     # Linux
-    set(MAYA_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS};LINUX")
-    set(MAYA_INSTALL_BASE_DEFAULT /usr/autodesk)
+    SET(MAYA_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS};LINUX")
+    SET(MAYA_INSTALL_BASE_DEFAULT /usr/autodesk)
     if(MAYA_VERSION LESS 2016)
         # Pre Maya 2016 on Linux
-        set(MAYA_INSTALL_BASE_SUFFIX -x64)
-    endif()
-    set(MAYA_PLUGIN_EXTENSION ".so")
-endif()
+        SET(MAYA_INSTALL_BASE_SUFFIX -x64)
+    ENDIF()
+    SET(MAYA_PLUGIN_EXTENSION ".so")
+ENDIF()
+SET(MAYA_CS_PLUGIN_EXTENSION ".nll.dll")
 
-set(MAYA_INSTALL_BASE_PATH ${MAYA_INSTALL_BASE_DEFAULT} CACHE STRING
+SET(MAYA_INSTALL_BASE_PATH ${MAYA_INSTALL_BASE_DEFAULT} CACHE STRING
     "Root path containing your maya installations, e.g. /usr/autodesk or /Applications/Autodesk/")
 
-set(MAYA_LOCATION ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
+SET(MAYA_LOCATION ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
+
+### Setup for C++ plugins
 
 # Maya include directory
 find_path(MAYA_INCLUDE_DIR maya/MFn.h
@@ -103,30 +108,30 @@ find_library(MAYA_LIBRARY
         "Maya.app/Contents/MacOS/"
     NO_DEFAULT_PATH
 )
-set(MAYA_LIBRARIES "${MAYA_LIBRARY}")
+SET(MAYA_LIBRARIES "${MAYA_LIBRARY}")
 
-include(FindPackageHandleStandardArgs)
+INCLUDE(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Maya
     REQUIRED_VARS MAYA_INCLUDE_DIR MAYA_LIBRARY)
-mark_as_advanced(MAYA_INCLUDE_DIR MAYA_LIBRARY)
+MARK_AS_ADVANCED(MAYA_INCLUDE_DIR MAYA_LIBRARY)
 
-if (NOT TARGET Maya::Maya)
-    add_library(Maya::Maya UNKNOWN IMPORTED)
-    set_target_properties(Maya::Maya PROPERTIES
+IF(NOT TARGET Maya::Maya)
+    ADD_LIBRARY(Maya::Maya UNKNOWN IMPORTED)
+    SET_TARGET_PROPERTIES(Maya::Maya PROPERTIES
         INTERFACE_COMPILE_DEFINITIONS "${MAYA_COMPILE_DEFINITIONS}"
         INTERFACE_INCLUDE_DIRECTORIES "${MAYA_INCLUDE_DIR}"
         IMPORTED_LOCATION "${MAYA_LIBRARY}")
     
-    if (APPLE AND ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang" AND MAYA_VERSION LESS 2017)
+    IF(APPLE AND ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang" AND MAYA_VERSION LESS 2017)
         # Clang and Maya 2016 and older needs to use libstdc++
-        set_target_properties(Maya::Maya PROPERTIES
+        SET_TARGET_PROPERTIES(Maya::Maya PROPERTIES
             INTERFACE_COMPILE_OPTIONS "-std=c++0x;-stdlib=libstdc++")
-    endif ()
-endif()
+    ENDIF()
+ENDIF()
 
 # Add the other Maya libraries into the main Maya::Maya library
-set(_MAYA_LIBRARIES OpenMayaAnim OpenMayaFX OpenMayaRender OpenMayaUI Foundation clew)
-foreach(MAYA_LIB ${_MAYA_LIBRARIES})
+SET(_MAYA_LIBRARIES OpenMayaAnim OpenMayaFX OpenMayaRender OpenMayaUI Foundation clew)
+FOREACH(MAYA_LIB ${_MAYA_LIBRARIES})
     find_library(MAYA_${MAYA_LIB}_LIBRARY
         NAMES 
             ${MAYA_LIB}
@@ -139,27 +144,65 @@ foreach(MAYA_LIB ${_MAYA_LIBRARIES})
         NO_DEFAULT_PATH)
     mark_as_advanced(MAYA_${MAYA_LIB}_LIBRARY)
     if (MAYA_${MAYA_LIB}_LIBRARY)
-        add_library(Maya::${MAYA_LIB} UNKNOWN IMPORTED)
-        set_target_properties(Maya::${MAYA_LIB} PROPERTIES
+        ADD_LIBRARY(Maya::${MAYA_LIB} UNKNOWN IMPORTED)
+        SET_TARGET_PROPERTIES(Maya::${MAYA_LIB} PROPERTIES
             IMPORTED_LOCATION "${MAYA_${MAYA_LIB}_LIBRARY}")
-        set_property(TARGET Maya::Maya APPEND PROPERTY
+        SET_PROPERTY(TARGET Maya::Maya APPEND PROPERTY
             INTERFACE_LINK_LIBRARIES Maya::${MAYA_LIB})
-        set(MAYA_LIBRARIES ${MAYA_LIBRARIES} "${MAYA_${MAYA_LIB}_LIBRARY}")
-    endif()
+        SET(MAYA_LIBRARIES ${MAYA_LIBRARIES} "${MAYA_${MAYA_LIB}_LIBRARY}")
+    ENDIF()
 endforeach()
 
+### Setup for C# Plugins
+SET(
+    _MAYA_OPENMAYA_ASSEMBLY
+    ${MAYA_LOCATION}/bin/openmayacs.dll
+)
+ADD_LIBRARY(
+    Maya::MayaCS SHARED IMPORTED
+)
+SET_TARGET_PROPERTIES(Maya::MayaCS PROPERTIES
+    LINKER_LANGUAGE CSharp
+    VS_DOTNET_TARGET_FRAMEWORK_VERSION CMAKE_DOTNET_TARGET_FRAMEWORK_VERSION
+    VS_DOTNET_REFERENCES 
+        ${_MAYA_OPENMAYA_ASSEMBLY}
+)
+
+### binding functions
+
+# todo auto install
+# make install an setup variable option
 function(MAYA_PLUGIN _target)
     if (WIN32)
-        set_target_properties(${_target} PROPERTIES
+        SET_TARGET_PROPERTIES(${_target} PROPERTIES
             LINK_FLAGS "/export:initializePlugin /export:uninitializePlugin")
-    endif()
-    set_target_properties(${_target} PROPERTIES
+    ENDIF()
+    SET_TARGET_PROPERTIES(${_target} PROPERTIES
         PREFIX ""
         SUFFIX ${MAYA_PLUGIN_EXTENSION})
 endfunction()
 
-# Maya plugin specific drop-in replacement for add_library command
+# Maya plugin specific drop-in replacement for ADD_LIBRARY command
 function(ADD_MAYA_PLUGIN_ENTRY _target)
-    add_library(${_target} SHARED)
+    ADD_LIBRARY(${_target} SHARED)
     MAYA_PLUGIN(${_target})
+endfunction()
+
+function(MAYA_CS_PLUGIN _target)
+    SET_TARGET_PROPERTIES(
+        ${_target}
+        PROPERTIES
+        VS_DOTNET_REFERENCES_COPY_LOCAL OFF
+        SUFFIX ${MAYA_CS_PLUGIN_EXTENSION}
+    )
+    SET_PROPERTY(
+        TARGET ${_target} APPEND
+        PROPERTY
+        VS_DOTNET_REFERENCES
+            "System"
+            "System.Core"
+            "System.Xml"
+            "System.Xml.Linq"
+            ${_MAYA_OPENMAYA_ASSEMBLY}
+    )
 endfunction()
